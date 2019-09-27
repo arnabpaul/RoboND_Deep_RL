@@ -27,6 +27,8 @@ It can be tracked at following path:
 
 RoboND-DeepRL-Project\gazebo\ArmPlugin.cpp
 
+Alternatively, it is kept seperately in this project folder for review.
+
 
 ##Rewards
 
