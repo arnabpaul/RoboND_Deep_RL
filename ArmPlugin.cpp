@@ -9,6 +9,8 @@
 //#include "dqnAgent.h"
 #include "cudaMappedMemory.h"
 #include "cudaPlanar.h"
+#include <fstream>
+#include <string>
 //#include <math.h> //added
 
 #define PI 3.141592653589793238462643383279502884197169f
@@ -37,14 +39,14 @@
 /
 */
 
-#define INPUT_WIDTH   64//512
-#define INPUT_HEIGHT  64//512
-#define OPTIMIZER "Adam" //"none"
-#define LEARNING_RATE 0.1f//0.00f
-#define REPLAY_MEMORY 500//10000
-#define BATCH_SIZE 8
-#define USE_LSTM false
-#define LSTM_SIZE 32//256//32
+#define INPUT_WIDTH   256//512//128//64//512
+#define INPUT_HEIGHT  256//512//128//64//512
+#define OPTIMIZER "RMSprop" //"none"
+#define LEARNING_RATE 0.01f//0.00f
+#define REPLAY_MEMORY 1000//10000
+#define BATCH_SIZE 16//128//64//16//8
+#define USE_LSTM true
+#define LSTM_SIZE 256//32//256//32
 
 /*
 / TODO - Define Reward Parameters
@@ -53,7 +55,7 @@
 
 #define REWARD_WIN  300.0f//0.0f
 #define REWARD_LOSS -300.0f//-0.0f
-#define REWARD_MULT 200.0f
+#define REWARD_INTERIM 400.0f
 
 // Define Object Names
 #define WORLD_NAME "arm_world"
@@ -285,7 +287,7 @@ void ArmPlugin::onCollisionMsg(ConstContactsPtr &contacts)
       	if((strcmp(contacts->contact(i).collision1().c_str(),COLLISION_ITEM)==0) 
 		|| (strcmp(contacts->contact(i).collision2().c_str(),COLLISION_POINT)==0))
 		{
-			printf("\ncollision reward_win");
+			printf("\n collision reward_win \n");
 
 			rewardHistory = REWARD_WIN;
 			newReward  = true;
@@ -551,7 +553,11 @@ static float BoxDistance(const math::Box& a, const math::Box& b)
 	
 	return sqrtf(sqrDist);
 }
-
+	
+	//myfile.open("distdata.txt", std::ios::out | std::ios::app);
+	//if(myfile.is_open()){
+   		//myfile << "distGoal,\t avgGoalDelta,\t distDelta \n";
+   		//myfile.close();}
 
 // called by the world update start event
 void ArmPlugin::OnUpdate(const common::UpdateInfo& updateInfo)
@@ -632,8 +638,9 @@ void ArmPlugin::OnUpdate(const common::UpdateInfo& updateInfo)
 		//if(gripper_length > groundContact)
           //checkGroundContact=true;
 //if((gripBBox.min.z <= groundContact) ||(gripBBox.max.z <= groundContact))
-		const float alpha=0.1f;
-		if(gripBBox.min.z < groundContact)
+      	const float alpha=0.1f;
+      	//std::ofstream myfile;
+		if((gripBBox.min.z <= groundContact)||(gripBBox.max.z <= groundContact))
 		{
 						
 			if(DEBUG){printf("GROUND CONTACT, EOE\n");}
@@ -662,14 +669,24 @@ void ArmPlugin::OnUpdate(const common::UpdateInfo& updateInfo)
 				const float distDelta  = lastGoalDistance - distGoal;
 				//printf("Dist delta=%f\n", distDelta);
 				// compute the smoothed moving average of the delta of the distance to the goal
-              	//average_delta  = (average_delta * alpha) + (dist * (1 - alpha));
-              	
-				avgGoalDelta  = (avgGoalDelta * alpha) + (distGoal * (1 - alpha));   //0.0;
+              	avgGoalDelta  = (avgGoalDelta * alpha) + (distGoal * (1 - alpha));   //0.0;
               	//printf("Avg Dist delta=%f\n", avgGoalDelta);
-              	if(avgGoalDelta <= distDelta){
-					rewardHistory = REWARD_WIN;
+              	//print to file
+              	//myfile.open("distdata.txt", std::ios::out | std::ios::app);
+              	//if(myfile.is_open() && totalRuns>80){
+              	/*if(myfile.is_open()){
+                	myfile << distGoal <<"\t"<<avgGoalDelta<< "\t"<< distDelta <<'\n';
+                  	myfile.close();
+                  }
+              	else 
+                  printf("unable to open file");*/
+              	//if(avgGoalDelta <0.1){
+                if(avgGoalDelta <= distDelta){
+                  	printf("Near to object reward\n");
+					rewardHistory = REWARD_INTERIM;
 					newReward     = true;
 					endEpisode    = false;
+                  	//return;//added
                 }
               
 			}
